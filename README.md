@@ -1,5 +1,9 @@
 # Compositor
 
+> **macOS 12+ compatibility fork.** This independent fork tracks upstream Compositor while keeping the app runnable on macOS 12 Monterey and later. It also carries the maintained Russian localization, browser-image paste workflow, Photoshop-style editing shortcuts, and the compatibility fallbacks documented in this repository.
+
+The upstream project currently targets newer macOS releases. Use this fork if you need the same editor workflow on an older Mac. Compatibility work is kept in the [`legacy-macos-12`](https://github.com/vfxbro/Compositor/tree/legacy-macos-12) branch.
+
 Adobe Photoshop costs too much and tools like GIMP don’t feel familiar enough for me to stay in flow. That’s why I built Compositor.
 
 The goal was to create a full-featured image editor that is completely free and open source. I use Photoshop for compositing and post-processing, so Compositor is built around that workflow - with the tools needed to create a pixel-perfect final image.
@@ -61,12 +65,20 @@ Because it’s open source, you can download the Xcode project and add, remove, 
 
 ## Requirements
 
-- macOS 26.5
+- macOS 12.0 or later
 - Xcode 26 or later (to build from source)
+
+## Installing a published build
+
+Download the latest macOS 12+ build from the [Releases](https://github.com/vfxbro/Compositor/releases) page and move `Compositor.app` to `/Applications`.
+
+If macOS shows a first-launch security warning for a build that is not notarized, control-click the app, choose **Open**, and confirm. Only install releases published from this repository or build the app from source yourself.
 
 ## Building
 
 Open `Compositor.xcodeproj` and run the **Compositor** scheme.
+
+The project is configured with a macOS 12.0 deployment target and builds universal `arm64`/`x86_64` binaries. Run `scripts/check-legacy-compatibility.sh` before publishing a change.
 
 ## Languages
 
