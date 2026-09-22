@@ -1,6 +1,4 @@
 import AppKit
-import CoreImage
-import Vision
 
 nonisolated struct ObjectSelectionSettings: Equatable, Sendable {
     /// Read the visible composite rather than just the active layer.
@@ -30,97 +28,19 @@ nonisolated enum ObjectSelection {
         let width = image.width, height = image.height
         let x = Int(point.x.rounded(.down)), y = Int(point.y.rounded(.down))
         guard point.x.isFinite, point.y.isFinite, (0..<width).contains(x), (0..<height).contains(y) else { return nil }
-        guard #available(macOS 14.0, *) else { throw Failure.unsupported }
-        return try selectAvailable(in: image, at: point, edgeOffset: edgeOffset, smoothEdges: smoothEdges)
+        let maskImage = try ForegroundSegmentationFactory.backend().objectMask(in: image, at: point)
+        guard let maskImage else { return nil }
+        let binaryMask = try ForegroundMaskUtilities.grayscaleBytes(from: maskImage, width: width, height: height)
+        return try path(from: binaryMask, width: width, height: height, edgeOffset: edgeOffset, smoothEdges: smoothEdges)
     }
 
-    @available(macOS 14.0, *)
-    private static func selectAvailable(in image: CGImage, at point: CGPoint, edgeOffset: Int, smoothEdges: Bool) throws -> CGPath? {
-        let handler = VNImageRequestHandler(cgImage: image, options: [:])
-        let request = VNGenerateForegroundInstanceMaskRequest()
-        try handler.perform([request])
-        guard let observation = request.results?.first else { return nil }
-        guard let instance = try instanceIndex(in: observation.instanceMask, at: point,
-                                               imageSize: CGSize(width: image.width, height: image.height)),
-              observation.allInstances.contains(instance) else { return nil }
-        let coarse = try observation.generateMask(forInstances: IndexSet(integer: instance))
-        let mask = adjusted(binaryMask: try edgePreservedBinaryMask(from: coarse, guide: image, width: image.width, height: image.height),
-                            width: image.width, height: image.height, edgeOffset: edgeOffset)
-        guard let outline = try MagicWand.outline(of: mask, width: image.width, height: image.height) else { return nil }
+    /// Converts a backend mask into the path representation used by the editor. This remains separate
+    /// from Vision/Core ML so the legacy route can be regression-tested without a particular OS model.
+    static func path(from binaryMask: [UInt8], width: Int, height: Int,
+                     edgeOffset: Int, smoothEdges: Bool) throws -> CGPath? {
+        let mask = ForegroundMaskUtilities.adjusted(binaryMask, width: width, height: height, edgeOffset: edgeOffset)
+        guard let outline = try MagicWand.outline(of: mask, width: width, height: height) else { return nil }
         return smoothEdges ? smoothed(outline) : outline
-    }
-
-    /// Vision's low-resolution instance mask stores 0 for background and instance indices for objects.
-    @available(macOS 14.0, *)
-    private static func instanceIndex(in pixelBuffer: CVPixelBuffer, at point: CGPoint, imageSize: CGSize) throws -> Int? {
-        let width = CVPixelBufferGetWidth(pixelBuffer)
-        let height = CVPixelBufferGetHeight(pixelBuffer)
-        guard width > 0, height > 0, imageSize.width > 0, imageSize.height > 0 else { return nil }
-        let bytes = try grayscaleBytes(from: pixelBuffer, width: width, height: height, interpolation: .none)
-        let x = min(width - 1, max(0, Int((point.x / imageSize.width) * CGFloat(width))))
-        let y = min(height - 1, max(0, Int((point.y / imageSize.height) * CGFloat(height))))
-        let value = Int(bytes[y * width + x])
-        return value == 0 ? nil : value
-    }
-
-    @available(macOS 14.0, *)
-    private static func edgePreservedBinaryMask(from pixelBuffer: CVPixelBuffer, guide: CGImage, width: Int, height: Int) throws -> [UInt8] {
-        let coarse = CIImage(cvPixelBuffer: pixelBuffer)
-        let guideImage = CIImage(cgImage: guide)
-        let refined: CIImage
-        if let filter = CIFilter(name: "CIEdgePreserveUpsampleFilter") {
-            filter.setValue(guideImage, forKey: kCIInputImageKey)
-            filter.setValue(coarse, forKey: "inputSmallImage")
-            filter.setValue(5, forKey: "inputSpatialSigma")
-            filter.setValue(0.15, forKey: "inputLumaSigma")
-            refined = filter.outputImage ?? coarse
-        } else {
-            refined = coarse
-        }
-        let grayscale = try grayscaleBytes(from: refined, width: width, height: height, interpolation: .high)
-        return grayscale.map { $0 >= 128 ? 255 : 0 }
-    }
-
-    private static func adjusted(binaryMask: [UInt8], width: Int, height: Int, edgeOffset: Int) -> [UInt8] {
-        var mask = binaryMask
-        let steps = min(10, abs(edgeOffset))
-        guard steps > 0, width > 0, height > 0 else { return mask }
-        for _ in 0..<steps {
-            mask = edgeOffset > 0 ? eroded(mask, width: width, height: height) : dilated(mask, width: width, height: height)
-        }
-        return mask
-    }
-
-    private static func eroded(_ mask: [UInt8], width: Int, height: Int) -> [UInt8] {
-        var result = mask
-        for y in 0..<height {
-            for x in 0..<width where mask[y * width + x] != 0 {
-                var keep = true
-                for ny in max(0, y - 1)...min(height - 1, y + 1) {
-                    for nx in max(0, x - 1)...min(width - 1, x + 1) where mask[ny * width + nx] == 0 {
-                        keep = false
-                    }
-                }
-                result[y * width + x] = keep ? 255 : 0
-            }
-        }
-        return result
-    }
-
-    private static func dilated(_ mask: [UInt8], width: Int, height: Int) -> [UInt8] {
-        var result = mask
-        for y in 0..<height {
-            for x in 0..<width where mask[y * width + x] == 0 {
-                var fill = false
-                for ny in max(0, y - 1)...min(height - 1, y + 1) {
-                    for nx in max(0, x - 1)...min(width - 1, x + 1) where mask[ny * width + nx] != 0 {
-                        fill = true
-                    }
-                }
-                if fill { result[y * width + x] = 255 }
-            }
-        }
-        return result
     }
 
     /// Rounds off the one-pixel stair steps created by tracing a binary mask. The winding and

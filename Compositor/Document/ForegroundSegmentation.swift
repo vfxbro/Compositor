@@ -117,6 +117,32 @@ nonisolated enum ForegroundMaskUtilities {
         try cgImage(from: mask.map { $0 >= 128 ? 255 : 0 }, width: width, height: height)
     }
 
+    static func rgbaBytes(from image: CGImage, width: Int, height: Int) throws -> [UInt8] {
+        guard width > 0, height > 0 else { throw ExportError.render }
+        guard let context = CGContext(data: nil, width: width, height: height,
+                                      bitsPerComponent: 8, bytesPerRow: width * 4,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),
+              let data = context.data else { throw ExportError.render }
+        context.interpolationQuality = .none
+        context.translateBy(x: 0, y: CGFloat(height))
+        context.scaleBy(x: 1, y: -1)
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let source = data.assumingMemoryBound(to: UInt8.self)
+        var result = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let destination = (y * width + x) * 4
+                let sourceOffset = ((height - 1 - y) * context.bytesPerRow) + x * 4
+                result[destination] = source[sourceOffset]
+                result[destination + 1] = source[sourceOffset + 1]
+                result[destination + 2] = source[sourceOffset + 2]
+                result[destination + 3] = source[sourceOffset + 3]
+            }
+        }
+        return result
+    }
+
     private static func eroded(_ mask: [UInt8], width: Int, height: Int) -> [UInt8] {
         var result = mask
         for y in 0..<height {

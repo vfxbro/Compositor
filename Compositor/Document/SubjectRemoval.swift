@@ -1,5 +1,4 @@
 import AppKit
-import Vision
 import CoreImage
 
 nonisolated enum SubjectRemoval {
@@ -28,21 +27,10 @@ nonisolated enum SubjectRemoval {
     /// panel offers is done to this afterwards by `refined`.
     private static func vision(_ image: CGImage) throws -> CGImage {
         try cache.mask(for: image) {
-            let handler = VNImageRequestHandler(cgImage: image, orientation: .up)
-            if #available(macOS 14.0, *) {
-                let request = VNGenerateForegroundInstanceMaskRequest()
-                try handler.perform([request])
-                guard let result = request.results?.first, !result.allInstances.isEmpty else { throw Failure.noSubject }
-                let buffer = try result.generateScaledMaskForImage(forInstances: result.allInstances, from: handler)
-                return try PixelAdjust.render(CIImage(cvPixelBuffer: buffer), width: image.width, height: image.height, isMask: true)
-            } else {
-                // macOS 12/13 do not expose the general foreground-instance model. Person segmentation
-                // is the closest system-provided fallback and keeps Remove Background useful on those releases.
-                let request = VNGeneratePersonSegmentationRequest()
-                request.qualityLevel = .accurate
-                try handler.perform([request])
-                guard let buffer = request.results?.first?.pixelBuffer else { throw Failure.noSubject }
-                return try PixelAdjust.render(CIImage(cvPixelBuffer: buffer), width: image.width, height: image.height, isMask: true)
+            do {
+                return try ForegroundSegmentationFactory.backend().subjectMask(in: image)
+            } catch ForegroundSegmentationError.noSubject {
+                throw Failure.noSubject
             }
         }
     }
@@ -96,10 +84,15 @@ nonisolated enum SubjectRemoval {
     /// mask that hides the background instead of erasing it. `under` is the layer's existing mask, kept as well.
     static func subjectMask(_ image: CGImage, under existing: CGImage?, settings: FilterSettings) throws -> CGImage {
         let subject = try refined(vision(image), guide: image, settings: settings, limit: .greatestFiniteMagnitude)
+        return try combinedMask(subject, under: existing)
+    }
+
+    /// Combines two grayscale masks without changing either source. Both masks hide: what either one hides stays hidden.
+    static func combinedMask(_ subject: CGImage, under existing: CGImage?) throws -> CGImage {
         guard let existing else { return subject }
         // Both masks hide: what either one hides stays hidden.
-        let context = try BrushRaster.context(width: image.width, height: image.height, mask: true)
-        let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+        let context = try BrushRaster.context(width: subject.width, height: subject.height, mask: true)
+        let bounds = CGRect(x: 0, y: 0, width: subject.width, height: subject.height)
         BrushRaster.draw(existing, in: bounds, mask: true, context: context)
         context.setBlendMode(.multiply)
         context.draw(subject, in: bounds)
@@ -109,9 +102,14 @@ nonisolated enum SubjectRemoval {
 
     /// The preview: the layer with its background made transparent by the same mask the commit lays down.
     static func run(_ image: CGImage, settings: FilterSettings) throws -> CGImage {
-        let source = CIImage(cgImage: image)
         // The preview refines on a copy at most this big, so dragging a slider stays responsive.
         let mask = CIImage(cgImage: try refined(vision(image), guide: image, settings: settings, limit: 1400))
+        return try apply(mask: mask, to: image)
+    }
+
+    /// Applies a preview mask to a source image through alpha, leaving the source image untouched.
+    static func apply(mask: CIImage, to image: CGImage) throws -> CGImage {
+        let source = CIImage(cgImage: image)
         let output = source.applyingFilter("CIBlendWithMask", parameters: [
             kCIInputBackgroundImageKey: CIImage(color: .clear).cropped(to: source.extent),
             kCIInputMaskImageKey: mask

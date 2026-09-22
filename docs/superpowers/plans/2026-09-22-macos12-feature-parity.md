@@ -114,19 +114,19 @@ git commit -m "feat: add macOS 12 foreground segmentation fallback"
 - Consumes \`ForegroundSegmentationFactory.backend()\` from Task 1.
 - Produces the existing \`ObjectSelection.select(in:at:edgeOffset:smoothEdges:)\` behavior with no OS-version error on macOS 12/13.
 
-- [ ] **Step 1: Add a regression test for the legacy route.**
+- [x] **Step 1: Add a regression test for the legacy route.**
 
 Add a test that invokes the platform-independent legacy backend with the synthetic two-object image and verifies that a click on object A does not include object B or the background. Add a test that calls the public selection conversion and confirms it returns a closed path rather than \`Failure.unsupported\`.
 
-- [ ] **Step 2: Run the test and verify the pre-change failure.**
+- [x] **Step 2: Run the test and verify the pre-change failure.**
 
 Run the focused \`LegacyForegroundSegmentationTests\` target. Expected before routing: the current public Object Selection path still throws \`Failure.unsupported\` when compiled for a macOS 12 availability branch.
 
-- [ ] **Step 3: Route native and legacy selection.**
+- [x] **Step 3: Route native and legacy selection.**
 
 Keep the current \`selectAvailable\` method annotated \`@available(macOS 14.0, *)\`. Change \`select(in:at:edgeOffset:smoothEdges:)\` to call \`ForegroundSegmentationFactory.backend().objectMask(in:at:)\`, then run the existing \`adjusted\`, \`MagicWand.outline\`, and smoothing conversion. Remove the macOS 12/13 \`throw Failure.unsupported\` branch while retaining the error case for source compatibility.
 
-- [ ] **Step 4: Run Object Selection tests and the Debug build.**
+- [x] **Step 4: Run Object Selection tests and the Debug build.**
 
 Run the focused tests and:
 
@@ -138,7 +138,7 @@ xcodebuild build -scheme Compositor -configuration Debug \\
 
 Expected: no availability errors and the app still targets macOS 12.0.
 
-- [ ] **Step 5: Commit the Object Selection integration.**
+- [x] **Step 5: Commit the Object Selection integration.**
 
 \`\`\`sh
 git add Compositor/Document/ObjectSelection.swift CompositorTests/LegacyForegroundSegmentationTests.swift
@@ -155,23 +155,23 @@ git commit -m "feat: keep object selection available on macOS 12"
 - Consumes \`ForegroundSegmentationFactory.backend()\` from Task 1.
 - Produces the existing \`SubjectRemoval.subjectMask(_:under:settings:)\` and \`SubjectRemoval.run(_:settings:)\` behavior with arbitrary foreground fallback on macOS 12/13.
 
-- [ ] **Step 1: Add mask-composition regression tests.**
+- [x] **Step 1: Add mask-composition regression tests.**
 
 Add tests that pass a synthetic source and existing mask to \`subjectMask\`, assert that the returned mask is non-empty, and verify that a black pixel in the existing mask remains black. Add a test that \`run\` produces an image with alpha removed outside the foreground mask rather than erasing or mutating the source input.
 
-- [ ] **Step 2: Run the tests to confirm the old implementation is insufficient.**
+- [x] **Step 2: Run the tests to confirm the old implementation is insufficient.**
 
 Run the focused test target. Expected before the integration: the current macOS 12 fallback only recognizes person pixels, so the synthetic non-person object test fails or returns \`noSubject\`.
 
-- [ ] **Step 3: Replace the hard-coded \`vision(_:)\` implementation with backend selection.**
+- [x] **Step 3: Replace the hard-coded \`vision(_:)\` implementation with backend selection.**
 
 Keep the current macOS 14 native implementation in a private \`nativeSubjectMask\` helper. Change \`vision(_:) \` to delegate to \`ForegroundSegmentationFactory.backend().subjectMask(in:)\`. Keep the existing cache, guided refinement, settings, existing-mask multiplication, and error-localization behavior unchanged.
 
-- [ ] **Step 4: Run Remove Background tests and inspect the generated resource.**
+- [x] **Step 4: Run Remove Background tests and inspect the generated resource.**
 
 Run the focused test target, confirm the compiled app contains \`DeepLabV3Int8LUT.mlmodelc\`, and run \`git diff --check\`.
 
-- [ ] **Step 5: Commit the Remove Background integration.**
+- [x] **Step 5: Commit the Remove Background integration.**
 
 \`\`\`sh
 git add Compositor/Document/SubjectRemoval.swift CompositorTests/LegacyForegroundSegmentationTests.swift
