@@ -24,7 +24,7 @@
 - Inspect: Git status, current branch, tags, upstream `main), existing compatibility checks, and current build metadata.
 - Create: local safety branch `legacy-macos-support-pre-1.2.2`.
 
-- [ ] **Step 1: Verify the checkout is clean and record the current fork commit.**
+- [x] **Step 1: Verify the checkout is clean and record the current fork commit.**
 
 Run:
 
@@ -36,7 +36,7 @@ git diff --check
 
 Expected: no uncommitted files, the current commit is `bf5068a`, and `git diff --check` is silent.
 
-- [ ] **Step 2: Preserve the existing PR branch before creating the new line.**
+- [x] **Step 2: Preserve the existing PR branch before creating the new line.**
 
 Run:
 
@@ -51,7 +51,7 @@ Expected: a local pointer exists at the current tested fork state; no files chan
 **Files:**
 - Modify: Git refs only; no source edits until the merge result is inspected.
 
-- [ ] **Step 1: Fetch the latest upstream main and verify the release boundary.**
+- [x] **Step 1: Fetch the latest upstream main and verify the release boundary.**
 
 Run:
 
@@ -63,7 +63,7 @@ git log -1 --oneline origin/main
 
 Expected: tag `v1.2.2` resolves to the upstream 1.2.2 release and `origin/main` is not behind that release.
 
-- [ ] **Step 2: Create the permanent forward-port branch from the tested fork.**
+- [x] **Step 2: Create the permanent forward-port branch from the tested fork.**
 
 Run:
 
@@ -73,7 +73,7 @@ git switch -c legacy-macos-12 legacy-macos-support
 
 Expected: `legacy-macos-12` points to the same code as the current fork before upstream changes.
 
-- [ ] **Step 3: Merge the upstream release without discarding fork changes.**
+- [x] **Step 3: Merge the upstream release without discarding fork changes.**
 
 Run:
 
@@ -89,7 +89,7 @@ Expected: either a clean merge or a conflict list limited to files changed by bo
 - Modify only files reported by the merge: `Compositor.xcodeproj/project.pbxproj`, compatibility helpers, `Compositor/CompositorApp.swift`, `Compositor/ContentView.swift`, `Compositor/Rendering/EditorCanvas.swift`, localization/UI files, and affected tests.
 - Preserve: `Compositor/Compatibility/*`, `Compositor/Localization/*`, `Compositor/Resources/Localizable.xcstrings`, `Compositor/IO/SelectionClipboard.swift`, and the fork's Settings delegate path unless the upstream change is demonstrably compatible.
 
-- [ ] **Step 1: Inventory conflicts and classify each one before editing.**
+- [x] **Step 1: Inventory conflicts and classify each one before editing.**
 
 Run:
 
@@ -100,19 +100,19 @@ git diff --name-only --diff-filter=U
 
 For each conflict, classify it as upstream feature code, macOS compatibility code, localization/menu code, clipboard/project persistence, or test/project wiring. Do not resolve a conflict by taking one whole side when the file contains both categories.
 
-- [ ] **Step 2: Resolve project wiring and version metadata.**
+- [x] **Step 2: Resolve project wiring and version metadata.**
 
 Keep all upstream 1.2.2 source/test references, retain compatibility files in the Xcode target, and keep the fork's deployment targets at `12.0`. Preserve version/build metadata semantics and do not change persisted project identifiers.
 
-- [ ] **Step 3: Resolve app commands and localization.**
+- [x] **Step 3: Resolve app commands and localization.**
 
 Keep exactly one working native Settings command, preserve English/Russian selection and restart behavior, and add English/Russian catalog entries for any new 1.2.2 strings. Never duplicate the Settings command or reintroduce a SwiftUI `Settings` scene that creates a second menu item.
 
-- [ ] **Step 4: Resolve rendering/input and clipboard conflicts.**
+- [x] **Step 4: Resolve rendering/input and clipboard conflicts.**
 
 Keep immediate Command +/- zoom on keyDown/repeat, browser image paste into New Canvas, and existing layer/project behavior. Integrate upstream blend-mode and adjustment changes without changing raw saved identifiers or clipboard text filtering.
 
-- [ ] **Step 5: Run static checks before committing the merge.**
+- [x] **Step 5: Run static checks before committing the merge.**
 
 Run:
 
@@ -129,7 +129,7 @@ Expected: no whitespace errors and no unguarded forbidden APIs, incompatible dep
 - Modify: affected tests only if the upstream release changed an assertion or a new fork regression is exposed.
 - Test: `CompositorTests`, `CompositorUITests`, and focused clipboard/localization/zoom tests.
 
-- [ ] **Step 1: Build Debug with signing disabled.**
+- [x] **Step 1: Build Debug with signing disabled.**
 
 Run:
 
@@ -155,7 +155,7 @@ xcodebuild test -scheme Compositor -destination 'platform=macOS' -parallel-testi
 
 Expected: no new failures attributable to the v1.2.2 merge. Record unavailable UI tests separately rather than marking them passed.
 
-- [ ] **Step 4: Build and inspect a universal Release app.**
+- [x] **Step 4: Build and inspect a universal Release app.**
 
 Run a Release build with `ONLY_ACTIVE_ARCH=NO`, then verify:
 
@@ -166,13 +166,15 @@ codesign --verify --deep --strict /tmp/CompositorDerivedData-v1.2.2-release/Buil
 
 Expected: `x86_64 arm64` and successful ad-hoc verification.
 
+**Execution note:** Debug and `build-for-testing` completed successfully. The Xcode test runner did not materialize an `xctest` worker in this environment and stalled at the local Launch Services worker; the full unit/UI test run was interrupted and is not counted as passed. Runtime tests remain a release gate on a normal Xcode host.
+
 ### Task 5: Commit and publish the maintainable fork line
 
 **Files:**
 - Create: merge commit and any focused follow-up commits.
 - Publish: branch `legacy-macos-12` to `https://github.com/vfxbro/Compositor`.
 
-- [ ] **Step 1: Review the final merge diff.**
+- [x] **Step 1: Review the final merge diff.**
 
 Run:
 
@@ -184,7 +186,7 @@ git diff --check
 
 Confirm the diff contains upstream 1.2.2 plus the documented compatibility/localization/clipboard/zoom scope and no generated build artifacts.
 
-- [ ] **Step 2: Commit the resolved forward-port.**
+- [x] **Step 2: Commit the resolved forward-port.**
 
 Run:
 
@@ -195,7 +197,7 @@ git commit -m "Merge upstream v1.2.2 into legacy macOS 12 fork"
 
 Expected: one reproducible commit containing only the forward-port and required fixes.
 
-- [ ] **Step 3: Push the new branch to the fork.**
+- [x] **Step 3: Push the new branch to the fork.**
 
 Run:
 
@@ -210,7 +212,7 @@ Expected: branch `legacy-macos-12` is visible in the user fork; do not force-pus
 **Files:**
 - Modify: `docs/project-format.md` or a new fork maintenance document only if the workflow is not already documented.
 
-- [ ] **Step 1: Document the release-forward sequence.**
+- [x] **Step 1: Document the release-forward sequence.**
 
 The documented sequence must be:
 
@@ -223,7 +225,6 @@ xcodebuild build -scheme Compositor -configuration Debug CODE_SIGNING_ALLOWED=NO
 git push https://github.com/vfxbro/Compositor.git legacy-macos-12
 ```
 
-- [ ] **Step 2: Record the support policy.**
+- [x] **Step 2: Record the support policy.**
 
 Document that upstream compatibility policy remains macOS 26.5, while this fork intentionally maintains macOS 12+ with explicit fallbacks and accepts the maintenance cost of resolving new API conflicts.
-
