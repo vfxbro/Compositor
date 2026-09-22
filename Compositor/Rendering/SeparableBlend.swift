@@ -1,12 +1,15 @@
 import CoreGraphics
 import CoreImage
 
-/// Color Burn and Color Dodge, blended the way the PDF spec (and Photoshop) define them.
+/// The blend modes Core Graphics can't draw, computed by Core Image instead.
 ///
-/// Core Graphics gets these two wrong: its `.colorBurn` and `.colorDodge` ignore how transparent the source is, so
-/// a soft brush comes out with a hard edge. Every other mode it has is right, so these two are evaluated explicitly
-/// in a copy of the canvas and the result is put back.
+/// Two kinds end up here. Core Graphics gets Color Burn and Color Dodge wrong: its versions ignore how transparent
+/// the source is, so a soft brush comes out with a hard edge. And it has no equivalent at all for Linear Burn,
+/// Linear Dodge, Vivid Light, Linear Light, Pin Light, Hard Mix, Subtract or Divide. Either way the layer is drawn
+/// into a copy of the canvas, blended there, and the result put back.
 nonisolated enum SeparableBlend {
+    /// Whether this mode has to be composited through a surface rather than drawn straight on.
+    static func needsSurface(_ mode: LayerBlendMode) -> Bool { mode.coreImageFilter != nil }
     static func isCoreGraphicsWrong(_ mode: LayerBlendMode) -> Bool { mode == .colorBurn || mode == .colorDodge }
     private static let space = CGColorSpace(name: CGColorSpace.sRGB)!
     // Core Image works in a linear space unless told otherwise, and these two modes are not separable from
@@ -18,7 +21,7 @@ nonisolated enum SeparableBlend {
     /// out exactly like `context`. Only a bitmap-backed context can be read back, so anywhere else this reports
     /// false and the caller draws with Core Graphics as before.
     static func draw(_ mode: LayerBlendMode, in context: CGContext, body: (CGContext) -> Void) -> Bool {
-        guard isCoreGraphicsWrong(mode), context.data != nil, context.width > 0, context.height > 0,
+        guard let name = mode.coreImageFilter, context.data != nil, context.width > 0, context.height > 0,
               let backdrop = context.makeImage(),
               let surface = CGContext(data: nil, width: context.width, height: context.height, bitsPerComponent: 8,
                                       bytesPerRow: context.width * 4, space: space,
@@ -29,10 +32,21 @@ nonisolated enum SeparableBlend {
         body(surface)
         guard let source = surface.makeImage() else { return false }
         let frame = CGRect(x: 0, y: 0, width: context.width, height: context.height)
-        // Use the explicit equations for both opaque and translucent pixels. Core Image's blend
-        // filters vary with the active color-management context on macOS 12, while these modes must
-        // produce the same result in export, canvas preview, and Universal builds.
-        guard let blended = cpuBlend(mode, source: source, backdrop: backdrop, frame: frame) else { return false }
+        let blended: CGImage
+        if isCoreGraphicsWrong(mode) {
+            // Use the explicit equations for Color Burn and Color Dodge. Core Image's blend
+            // filters vary with the active color-management context on macOS 12.
+            guard let result = cpuBlend(mode, source: source, backdrop: backdrop, frame: frame) else { return false }
+            blended = result
+        } else {
+            guard let filter = CIFilter(name: name) else { return false }
+            filter.setValue(CIImage(cgImage: source), forKey: kCIInputImageKey)
+            filter.setValue(CIImage(cgImage: backdrop), forKey: kCIInputBackgroundImageKey)
+            guard let output = filter.outputImage,
+                  let result = ciContext.createCGImage(output, from: frame, format: .RGBA8, colorSpace: space)
+            else { return false }
+            blended = result
+        }
         context.saveGState()
         context.concatenate(context.ctm.inverted())
         context.setBlendMode(.copy)

@@ -238,7 +238,7 @@ struct CompositorApp: App {
                         .configuredKeyboardShortcut("l").disabled(!session.canAdjustColors || session.hueSaturation != nil)
                     Button("Hue/Saturation…") { session.beginHueSaturation() }
                         .configuredKeyboardShortcut("u").disabled(!session.canAdjustColors)
-                    ForEach([FilterKind.exposure, .gradientMap, .grain], id: \.self) { kind in
+                    ForEach([FilterKind.blackWhite, .colorBalance, .exposure, .gradientMap, .grain], id: \.self) { kind in
                         Button(kind.localizedName(locale: selectedLocale) + "…") { session.beginFilter(kind) }
                             .disabled(!session.canAdjustColors || session.hueSaturation != nil)
                     }

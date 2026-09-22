@@ -75,6 +75,18 @@ extension LayerBlendMode {
         case "sat ": .saturation
         case "colr": .color
         case "lum ": .luminosity
+        case "lbrn": .linearBurn
+        case "lddg": .linearDodge
+        case "hLit": .hardLight
+        case "vLit": .vividLight
+        case "lLit": .linearLight
+        case "pLit": .pinLight
+        case "hMix": .hardMix
+        case "smud": .exclusion
+        case "fsub": .subtract
+        case "fdiv": .divide
+        // Dissolve, Darker Color and Lighter Color are deliberately absent: Compositor has no
+        // equivalent, so they fall through to Normal and say so in the conversion report.
         default: nil
         }
     }

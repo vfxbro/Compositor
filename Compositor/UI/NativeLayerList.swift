@@ -143,7 +143,7 @@ struct NativeLayerList: NSViewRepresentable {
             let cell = table.view(atColumn: 0, row: table.clickedRow, makeIfNecessary: false) as? LayerCell
             if cell?.isOnControl(point) == true {
                 if rows[table.clickedRow].liveText != nil { session.editActiveText(); return }
-                if rows[table.clickedRow].adjustment != nil { session.adjustmentEditingID = id; return }
+                if rows[table.clickedRow].adjustment?.kind.isEditable == true { session.adjustmentEditingID = id; return }
             }
             session.renamingLayerID = id
         }

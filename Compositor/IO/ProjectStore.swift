@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 extension UTType {
     static let compositorProject = UTType(exportedAs: "com.compositor.project", conformingTo: .package)
     static let photoshopImage = UTType(importedAs: "com.adobe.photoshop-image")
-    static let importableImages: [UTType] = [.jpeg, .png, .heic, .tiff, .photoshopImage]
+    static let importableImages: [UTType] = [.jpeg, .png, .heic, .tiff, .photoshopImage, .rawImage]
 }
 
 nonisolated struct ProjectManifest: Codable, Sendable {

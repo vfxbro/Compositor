@@ -26,12 +26,14 @@ struct BlendShortcutTests {
         session.selectTool(.brush)
         #expect(window.makeFirstResponder(canvas))
         try press(forward: true)
-        #expect(mode() == .multiply)
+        // The list follows Photoshop's order, so the mode after Normal is the first darkening one.
+        #expect(mode() == .darken)
         session.selectTool(.lasso)
         #expect(window.makeFirstResponder(nil))
         try press(forward: false)
         try press(forward: false)
-        #expect(mode() == .colorBurn) // back past Normal, wrapping to the last quick-cycle mode
+        // Back past Normal, wrapping to the last mode. Named rather than spelled out: the list has grown before
+        #expect(mode() == LayerBlendMode.allCases.last)
         session.undo()
         #expect(mode() == .normal)
         // Typing in a text field keeps its characters.

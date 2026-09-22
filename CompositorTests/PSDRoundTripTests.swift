@@ -180,16 +180,19 @@ struct PSDRoundTripTests {
         #expect(PSDReader.matches(psd))
     }
 
-    @Test func unknownBlendProducesConversionReport() throws {
+    /// Was unknownBlendProducesConversionReport with "vLit". Vivid Light is supported now, so an
+    /// unsupported key has to be one Photoshop has and Compositor doesn't: Dissolve scatters pixels
+    /// by opacity rather than blending, and comes in as Normal.
+    @Test func unsupportedBlendProducesConversionReport() throws {
         let fill = try colorImage(width: 2, height: 2, red: 1, green: 0, blue: 0)
-        var layer = PSDRecord(id: UUID(), name: "Vivid")
+        var layer = PSDRecord(id: UUID(), name: "Dissolved")
         layer.bounds = CGRect(x: 0, y: 0, width: 2, height: 2)
         layer.image = fill
-        layer.blendKey = "vLit"
+        layer.blendKey = "diss"
         let data = try PSDFixture.data(PSDDocument(width: 2, height: 2, resolution: 72, layers: [layer]), composite: fill)
         let imported = try PSDDocumentBuilder.makeImport(try PSDReader.read(data))
         #expect(!imported.conversions.isEmpty)
-        #expect(imported.conversions.contains { $0.layerName == "Vivid" && $0.message.contains("vLit") })
+        #expect(imported.conversions.contains { $0.layerName == "Dissolved" && $0.message.contains("diss") })
         #expect(imported.layers.first?.blendMode == .normal)
     }
 
@@ -253,10 +256,10 @@ struct PSDRoundTripTests {
 
     @Test func cancelledConversionLeavesTheDocumentUnchanged() async throws {
         let fill = try colorImage(width: 2, height: 2, red: 1, green: 0, blue: 0)
-        var layer = PSDRecord(id: UUID(), name: "Vivid")
+        var layer = PSDRecord(id: UUID(), name: "Dissolved")
         layer.bounds = CGRect(x: 0, y: 0, width: 2, height: 2)
         layer.image = fill
-        layer.blendKey = "vLit"
+        layer.blendKey = "diss"
         let data = try PSDFixture.data(PSDDocument(width: 2, height: 2, resolution: 72, layers: [layer]), composite: fill)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).psd")
         try data.write(to: url)

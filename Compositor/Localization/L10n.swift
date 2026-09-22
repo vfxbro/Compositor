@@ -83,6 +83,8 @@ extension FilterKind {
         case .exposure: return "exposure"
         case .gradientMap: return "gradientMap"
         case .grain: return "grain"
+        case .blackWhite: return "blackWhite"
+        case .colorBalance: return "colorBalance"
         }
     }
 }
@@ -101,6 +103,9 @@ extension AdjustmentKind {
         case .exposure: key = "exposure"
         case .gradientMap: key = "gradientMap"
         case .grain: key = "grain"
+        case .invert: key = "invert"
+        case .blackWhite: key = "blackWhite"
+        case .colorBalance: key = "colorBalance"
         }
         return L10n.text("adjustment.\(key)", locale: locale)
     }
@@ -124,10 +129,20 @@ extension LayerBlendMode {
         case .difference: key = "difference"
         case .colorDodge: key = "colorDodge"
         case .colorBurn: key = "colorBurn"
+        case .linearBurn: key = "linearBurn"
+        case .linearDodge: key = "linearDodge"
+        case .hardLight: key = "hardLight"
+        case .vividLight: key = "vividLight"
+        case .linearLight: key = "linearLight"
+        case .pinLight: key = "pinLight"
+        case .hardMix: key = "hardMix"
         case .hue: key = "hue"
         case .saturation: key = "saturation"
         case .color: key = "color"
         case .luminosity: key = "luminosity"
+        case .exclusion: key = "exclusion"
+        case .subtract: key = "subtract"
+        case .divide: key = "divide"
         }
         return L10n.text("blend.\(key)", locale: locale)
     }

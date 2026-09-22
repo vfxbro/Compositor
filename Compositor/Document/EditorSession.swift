@@ -195,10 +195,16 @@ final class EditorSession: ObservableObject {
     var shapeTransformPreviewCache: [UUID: (size: CGSize, image: CGImage)] = [:]
     @Published var locksTransformRatio = true
     /// Off by default: a Move-tool press drags the active layer; hold Cmd (or turn this on) to pick the layer under the pointer.
-    @Published var transformAutoSelect = false
+    @Published var transformAutoSelect = ToolDefaults.bool("autoSelect", false) {
+        didSet { ToolDefaults.set(transformAutoSelect, "autoSelect") }
+    }
     /// The Move tool's transform box and handles (⌘H). Hidden, a drag anywhere just moves the layer;
     /// a pending ⌘T transform still shows its box.
-    @Published var showsTransformControls = true
+    @Published var showsTransformControls = ToolDefaults.bool("transformControls", true) {
+        didSet { ToolDefaults.set(showsTransformControls, "transformControls") }
+    }
+    /// The Move tool's transform box and handles (⌘H). Hidden, a drag anywhere just moves the layer;
+    /// a pending ⌘T transform still shows its box.
     /// The copies an Option-drag made, and what was selected before it, so Escape can take them away again.
     var transformDuplicate: (copies: [UUID], source: Set<UUID>, primary: UUID?)?
     @Published var brushSettings = BrushSettings() { didSet { refreshGradient() } }
@@ -264,19 +270,39 @@ final class EditorSession: ObservableObject {
     @Published var selectionFeatherAmount = 2
     @Published var wandSettings = WandSettings()
     @Published var objectSelectionSettings = ObjectSelectionSettings()
-    @Published var showsPixelGrid = true
+    @Published var showsPixelGrid = ToolDefaults.bool("pixelGrid", true) {
+        didSet { ToolDefaults.set(showsPixelGrid, "pixelGrid") }
+    }
     /// Layout grid (View > Show > Grid). Off until turned on; independent of the 800% pixel grid.
-    @Published var showsGrid = false
+    @Published var showsGrid = ToolDefaults.bool("grid", false) {
+        didSet { ToolDefaults.set(showsGrid, "grid") }
+    }
     /// User guides. Hidden extras do not snap.
-    @Published var showsGuides = true
-    @Published var showsRulers = false
+    @Published var showsGuides = ToolDefaults.bool("guides", true) {
+        didSet { ToolDefaults.set(showsGuides, "guides") }
+    }
+    @Published var showsRulers = ToolDefaults.bool("rulers", false) {
+        didSet { ToolDefaults.set(showsRulers, "rulers") }
+    }
     /// Master snap switch (View > Snap). On so today's layer/canvas snap keeps working.
-    @Published var snapEnabled = true
-    @Published var snapToGuides = true
-    @Published var snapToGrid = false
-    @Published var snapToLayers = true
-    @Published var snapToDocumentBounds = true
-    @Published var locksGuides = false
+    @Published var snapEnabled = ToolDefaults.bool("snap", true) {
+        didSet { ToolDefaults.set(snapEnabled, "snap") }
+    }
+    @Published var snapToGuides = ToolDefaults.bool("snapGuides", true) {
+        didSet { ToolDefaults.set(snapToGuides, "snapGuides") }
+    }
+    @Published var snapToGrid = ToolDefaults.bool("snapGrid", false) {
+        didSet { ToolDefaults.set(snapToGrid, "snapGrid") }
+    }
+    @Published var snapToLayers = ToolDefaults.bool("snapLayers", true) {
+        didSet { ToolDefaults.set(snapToLayers, "snapLayers") }
+    }
+    @Published var snapToDocumentBounds = ToolDefaults.bool("snapBounds", true) {
+        didSet { ToolDefaults.set(snapToDocumentBounds, "snapBounds") }
+    }
+    @Published var locksGuides = ToolDefaults.bool("lockGuides", false) {
+        didSet { ToolDefaults.set(locksGuides, "lockGuides") }
+    }
     @Published var guideDrag: GuideDrag?
     /// Pixels the Expand / Contract buttons grow or shrink the selection by.
     @Published var selectionExpandAmount = 1
@@ -518,6 +544,31 @@ final class EditorSession: ObservableObject {
     @Published var conversionRequest: PSDConversionRequest?
     /// Tests assign this to skip the conversion sheet.
     var confirmConversions: (([PSDConversion]) async -> Bool)?
+    /// The RAW file being developed, and the settings the sheet is editing (see RawImporter).
+    @Published var rawDevelop: (url: URL, settings: RawDevelopSettings)?
+    @Published var showsRawDevelop = false { didSet { resumeFileRequests() } }
+    private var rawContinuation: CheckedContinuation<RawDevelopSettings?, Never>?
+    /// Tests assign this to develop without a sheet.
+    var confirmRawDevelop: ((URL, RawDevelopSettings) async -> RawDevelopSettings?)?
+
+    /// Puts the develop sheet up and waits for the choice; nil means the import was cancelled.
+    func developRaw(_ url: URL) async -> RawDevelopSettings? {
+        let asShot = RawImporter.asShot(url) ?? RawDevelopSettings()
+        if let confirmRawDevelop { return await confirmRawDevelop(url, asShot) }
+        return await withCheckedContinuation { continuation in
+            rawContinuation = continuation
+            rawDevelop = (url, asShot)
+            showsRawDevelop = true
+        }
+    }
+    func finishRawDevelop(_ settings: RawDevelopSettings?) {
+        showsRawDevelop = false
+        rawDevelop = nil
+        Task { await RawImporter.Queue.shared.release() }
+        let continuation = rawContinuation
+        rawContinuation = nil
+        continuation?.resume(returning: settings)
+    }
     private var conversionContinuation: CheckedContinuation<Bool, Never>?
     /// Cancel pressed while a Photoshop file was still being read.
     private var conversionCancelled = false
@@ -745,7 +796,18 @@ final class EditorSession: ObservableObject {
                     guard let image = layer.asset?.image else { return total }
                     return total + image.width * image.height
                 } ?? 0
-                if PSDReader.matches(url) {
+                if RawImporter.matches(url) {
+                    guard let size = RawImporter.pixelSize(url) else { throw ImageImportError.unreadable }
+                    guard size.width <= 30_000, size.height <= 30_000,
+                          size.width * size.height <= 100_000_000 - usedPixels else { throw ImageImportError.tooLarge }
+                    guard let settings = await developRaw(url) else { continue }
+                    // Seconds of work: off the main actor, or pressing Import freezes the window.
+                    guard let developed = await RawImporter.Queue.shared.develop(url, settings: settings, limit: nil)
+                    else { throw ImageImportError.unreadable }
+                    let thumbnail = try PixelAdjust.thumbnail(of: developed)
+                    insert(ImportedImage(image: developed, thumbnail: thumbnail,
+                                         name: url.deletingPathExtension().lastPathComponent), centeredAt: point)
+                } else if PSDReader.matches(url) {
                     beginPSDReading(title: "Open “\(url.lastPathComponent)”?", confirmTitle: "Import")
                     let imported: PSDImport
                     do {
