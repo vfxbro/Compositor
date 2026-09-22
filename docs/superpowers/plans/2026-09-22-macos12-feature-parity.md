@@ -35,7 +35,7 @@
 - Produces \`ForegroundSegmentationBackend\` with \`objectMask(in:at:)\` and \`subjectMask(in:)\` methods returning full-resolution grayscale \`CGImage\` masks.
 - Produces \`ForegroundSegmentationFactory.backend()\` that selects the native backend on macOS 14+ and the legacy backend on macOS 12/13.
 
-- [ ] **Step 1: Add the failing pure-mask tests.**
+- [x] **Step 1: Add the failing pure-mask tests.**
 
 Create a synthetic 96×64 RGBA image containing a red rectangle and a blue rectangle separated by black background. Add tests that call the legacy backend's pure mask helpers and assert:
 
@@ -47,7 +47,7 @@ Create a synthetic 96×64 RGBA image containing a red rectangle and a blue recta
 
 Add tests for \`edgeOffset\` expansion/contraction and a closed output mask after smoothing. Keep these tests independent of Vision and Core ML by testing the backend's image/mask conversion helpers.
 
-- [ ] **Step 2: Run the focused test to confirm it fails before implementation.**
+- [x] **Step 2: Run the focused test to confirm it fails before implementation.**
 
 Run:
 
@@ -59,11 +59,11 @@ xcodebuild test -scheme Compositor -destination 'platform=macOS' \\
 
 Expected: compile failure because the new backend and mask helpers do not yet exist.
 
-- [ ] **Step 3: Add the official compact model and target resource.**
+- [x] **Step 3: Add the official compact model and target resource.**
 
 Download Apple's \`DeepLabV3Int8LUT.mlmodel\` from \`https://ml-assets.apple.com/coreml/models/Image/ImageSegmentation/DeepLabV3/DeepLabV3Int8LUT.mlmodel\`, add it to \`Compositor/Resources/Models\`, and add it to the Compositor target's Resources build phase. Record the source URL, model name, 2.3 MB size, and redistribution notice in \`docs/third-party-models.md\`.
 
-- [ ] **Step 4: Implement the backend contract and model loader.**
+- [x] **Step 4: Implement the backend contract and model loader.**
 
 In \`ForegroundSegmentation.swift\`, define:
 
@@ -76,15 +76,15 @@ nonisolated protocol ForegroundSegmentationBackend: Sendable {
 
 Implement a lazy \`MLModel\` loader using \`Bundle.main.url(forResource:withExtension:)\` lookup so the app target and unit-test host can both resolve the model. Configure \`MLModelConfiguration.computeUnits = .all\` and cache the compiled model in a lock-protected singleton.
 
-- [ ] **Step 5: Convert DeepLabV3 output to masks.**
+- [x] **Step 5: Convert DeepLabV3 output to masks.**
 
 Use \`MLModel.modelDescription\` to locate the image input and first \`MLMultiArray\` output, resize a \`CGImage\` to the model input, and read the class-id tensor without assuming a fixed output layout. Treat Pascal VOC class \`0\` as background and use the class at the clicked point for Object Selection. Keep only the connected component containing the click; for Remove Background union every non-background class. Convert the result into a full-resolution grayscale \`CGImage\` and pass it through the existing guided-edge/morphology refinement helpers.
 
-- [ ] **Step 6: Add Monterey fallbacks and deterministic helpers.**
+- [x] **Step 6: Add Monterey fallbacks and deterministic helpers.**
 
 If model loading or inference fails, try \`VNGeneratePersonSegmentationRequest\` and then use a deterministic fallback that combines \`VNGenerateObjectnessBasedSaliencyImageRequest\`, a click-seeded color/edge flood fill, and the existing mask refinement. Return \`nil\`/\`Failure.noSubject\` only after all three paths fail; never throw \`Failure.unsupported\` from the macOS 12/13 backend.
 
-- [ ] **Step 7: Run the focused tests and compatibility check.**
+- [x] **Step 7: Run the focused tests and compatibility check.**
 
 Run the focused test command again and:
 
@@ -94,7 +94,7 @@ Run the focused test command again and:
 
 Expected: focused tests pass, the model resource is present in the built app, and the compatibility script reports success.
 
-- [ ] **Step 8: Commit the backend as an independently reviewable change.**
+- [x] **Step 8: Commit the backend as an independently reviewable change.**
 
 \`\`\`sh
 git add Compositor/Document/ForegroundSegmentation.swift \\
