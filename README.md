@@ -4,6 +4,46 @@
 
 The upstream project currently targets newer macOS releases. Use this fork if you need the same editor workflow on an older Mac. Compatibility work is kept in the [`legacy-macos-12`](https://github.com/vfxbro/Compositor/tree/legacy-macos-12) branch.
 
+## What this fork adds
+
+This fork follows upstream Compositor 1.2.2 and keeps its existing editing features. The changes below are additions to the user workflow, not just build-system changes for older macOS versions.
+
+### macOS 12+ compatibility with feature parity
+
+- The minimum supported version is macOS 12.0 Monterey.
+- Release builds are universal and include both Apple Silicon (`arm64`) and Intel (`x86_64`) binaries.
+- Newer SwiftUI, Observation, concurrency, and window APIs are isolated behind compatibility helpers so the editor keeps the same workflow on macOS 12–15 and newer systems.
+- The Magic/Object selection, Select Subject, and Remove Background tools remain available on macOS 12 and 13. The fork uses the native Vision implementation where it exists and a bundled Core ML fallback model on older systems instead of disabling the tools.
+- Compatibility checks and dedicated tests guard the deployment target, Sparkle version, security entitlements, supported architectures, and accidental use of newer APIs.
+
+### Browser image clipboard workflow
+
+- `Command-V` accepts images copied from browsers and other applications even when the clipboard advertises only the generic `public.image` type.
+- On an empty document, pasting an image creates a new canvas automatically using the image's pixel dimensions.
+- The same behavior works from the New Canvas panel, including when the width or height field is focused.
+- Pasted images are added as a centered layer on an existing canvas; images copied inside Compositor preserve their original layer position.
+- Text fields keep native text paste behavior, so clipboard image handling does not interfere with normal text editing.
+
+### Photoshop-style keyboard behavior
+
+- `Command-D` deselects the active selection.
+- `Command-Z` and `Shift-Command-Z` undo and redo document history.
+- `Command-C` and `Command-V` copy and paste canvas pixels as layers.
+- Keyboard commands are routed at the canvas level, so they work reliably when the custom canvas or a panel has focus while native text controls retain their own editing commands.
+- Keyboard zoom uses stable Photoshop-style zoom stops, keeps the document point under the viewport center, and updates immediately while `Command` is held, including key repeat for `Command-+` and `Command--`.
+- Shortcut registration is validated for duplicate commands and conflicting custom overrides.
+
+### English and Russian interface
+
+- The interface can be set to English, Russian, or System Default in `Compositor → Settings…` (`Command-,`).
+- The choice is saved between launches and the SwiftUI interface updates immediately.
+- Native macOS menu commands use the same selected language after relaunch, including the Settings command.
+- Menu labels, tool names, layer names, dialogs, import/export panels, filters, status hints, and common error messages use the shared localization catalog.
+
+### Regression coverage
+
+The fork adds tests for localization persistence, browser clipboard formats, image-sized canvas creation, foreground-mask fallbacks, zoom anchoring and key repeat, keyboard command routing, history round trips, and shortcut-table conflicts. The compatibility checklist is available in [`docs/legacy-macos-12-maintenance.md`](docs/legacy-macos-12-maintenance.md).
+
 Adobe Photoshop costs too much and tools like GIMP don’t feel familiar enough for me to stay in flow. That’s why I built Compositor.
 
 The goal was to create a full-featured image editor that is completely free and open source. I use Photoshop for compositing and post-processing, so Compositor is built around that workflow - with the tools needed to create a pixel-perfect final image.
