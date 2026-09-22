@@ -184,7 +184,7 @@ git commit -m "feat: keep remove background available on macOS 12"
 - Modify: \`docs/superpowers/specs/2026-09-22-macos12-feature-parity-design.md\` only if verification discovers a requirement mismatch.
 - Test: Debug build, unit tests, compatibility script, universal Release app.
 
-- [ ] **Step 1: Run all focused tests together.**
+- [x] **Step 1: Run all focused tests together.**
 
 \`\`\`sh
 xcodebuild test-without-building -quiet \\
@@ -197,7 +197,7 @@ xcodebuild test-without-building -quiet \\
 
 Expected: focused tests pass on the available host. If Launch Services cannot materialize the Xcode worker, record that infrastructure limitation without treating the tests as passed.
 
-- [ ] **Step 2: Run static and deployment checks.**
+- [x] **Step 2: Run static and deployment checks.**
 
 \`\`\`sh
 git diff --check
@@ -206,7 +206,7 @@ git diff --check
 
 Expected: no conflict markers, no unguarded macOS APIs, and no deployment target below or above the intended compatibility boundary.
 
-- [ ] **Step 3: Build and inspect Universal Release.**
+- [x] **Step 3: Build and inspect Universal Release.**
 
 \`\`\`sh
 xcodebuild build -quiet -scheme Compositor -configuration Release \\
@@ -218,7 +218,7 @@ plutil -p /tmp/CompositorDerivedData-macos12-parity-release/Build/Products/Relea
 
 Expected: \`x86_64 arm64\`, version \`1.2.2\`, and \`LSMinimumSystemVersion\` equal to \`12.0\`.
 
-- [ ] **Step 4: Commit the verified parity work and push the branch.**
+- [x] **Step 4: Commit the verified parity work and push the branch.**
 
 \`\`\`sh
 git status --short
