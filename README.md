@@ -61,7 +61,7 @@ Because it’s open source, you can download the Xcode project and add, remove, 
 - Import JPEG, PNG, HEIC, TIFF and Photoshop PSD (8-bit RGB only; not PSB or CMYK). PSD folders, masks, a subset of blend modes, and fill rectangles/ellipses stay editable; text and other vectors become pixels. A conversion report is shown before anything is applied.
 - Export JPEG with a live preview (⇧⌥⌘S); Copy Merged
 - Photoshop-style keyboard shortcuts throughout, remappable in Edit > Keyboard Shortcuts
-- Automatic updates, signed and notarized
+- Automatic updates for signed and notarized fork releases
 
 ## Requirements
 
@@ -72,7 +72,7 @@ Because it’s open source, you can download the Xcode project and add, remove, 
 
 Download the latest macOS 12+ build from the [Releases](https://github.com/vfxbro/Compositor/releases) page and move `Compositor.app` to `/Applications`.
 
-If macOS shows a first-launch security warning for a build that is not notarized, control-click the app, choose **Open**, and confirm. Only install releases published from this repository or build the app from source yourself.
+If macOS shows a first-launch security warning for the current unsigned preview, control-click the app, choose **Open**, and confirm. Only install releases published from this repository or build the app from source yourself. Automatic updates stay disabled until a signed and notarized fork release is published.
 
 ## Building
 

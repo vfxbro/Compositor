@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Publishes the DMG that release.sh built: a GitHub Release (v<version>) holding Compositor.dmg, then the Sparkle
-# update feed (appcast.xml, committed to main) pointing at it.
+# update feed (appcast.xml, committed to the fork's main branch) pointing at it.
 #
 # Run release.sh first. Needs the Sparkle signing key in the login keychain and `gh` signed in.
 # Release notes: RELEASE_NOTES="…" ./scripts/publish.sh
@@ -9,6 +9,7 @@ set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP=Compositor
 REPO="${GITHUB_REPOSITORY:-vfxbro/Compositor}"
+REMOTE="${PUBLISH_REMOTE:-fork}"
 WORK="$HOME/Library/Caches/CompositorRelease"
 SIGN_UPDATE="$WORK/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
 
@@ -16,7 +17,7 @@ settings=$(xcodebuild -project "$PROJECT_DIR/$APP.xcodeproj" -scheme "$APP" -con
 VERSION=$(print -r -- "$settings" | awk -F' = ' '/ MARKETING_VERSION = /{print $2; exit}')
 BUILD=$(print -r -- "$settings" | awk -F' = ' '/ CURRENT_PROJECT_VERSION = /{print $2; exit}')
 MINIMUM=$(print -r -- "$settings" | awk -F' = ' '/ MACOSX_DEPLOYMENT_TARGET = /{print $2; exit}')
-TAG="v$VERSION"
+TAG="${RELEASE_TAG:-v$VERSION}"
 SOURCE="$PROJECT_DIR/dist/$APP-$VERSION.dmg"
 [[ -f "$SOURCE" ]] || { echo "No $SOURCE — run scripts/release.sh first."; exit 1; }
 [[ -x "$SIGN_UPDATE" ]] || { echo "Sparkle's sign_update isn't built — run scripts/release.sh first."; exit 1; }
@@ -57,5 +58,5 @@ cat > "$PROJECT_DIR/appcast.xml" <<XML
 XML
 git -C "$PROJECT_DIR" add appcast.xml
 git -C "$PROJECT_DIR" commit -q -m "Publish update feed for $APP $VERSION"
-git -C "$PROJECT_DIR" push -q
+git -C "$PROJECT_DIR" push -q "$REMOTE" HEAD
 echo "==> Done: https://github.com/$REPO/releases/tag/$TAG"
